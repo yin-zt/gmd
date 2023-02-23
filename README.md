@@ -3,4 +3,4 @@ I create these  programs as experiments to play with golang, or to solve problem
 
 ## file
 1. ftpserver 
-![api](docs/ftpserver.png)
+(docs/ftpserver.png)

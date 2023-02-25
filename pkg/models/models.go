@@ -273,9 +273,14 @@ func (this *Gmd) Exec(module string, action string) {
 	this.Util.ExecCmd([]string{command}, 10)
 }
 
-// Ip 支持获取本地ip，并返回满足查询条件(内置)的首个ip地址
-func (this *Gmd) Ip(module string, action string) {
+// LocalIp 支持获取本地ip，并返回满足查询条件(内置)的首个ip地址
+func (this *Gmd) Localip(module string, action string) {
 	fmt.Println(this.Util.GetLocalIP())
+}
+
+// Ip 支持获取与外网通信的网卡ip
+func (this *Gmd) Ip(module string, action string) {
+	fmt.Println(this.Util.GetNetworkIP())
 }
 
 // Rand 使用方法：gmd rand

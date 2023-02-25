@@ -10,9 +10,11 @@ import (
 	"github.com/goftp/server"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	random "math/rand"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Gmd struct {
@@ -274,4 +276,18 @@ func (this *Gmd) Exec(module string, action string) {
 // Ip 支持获取本地ip，并返回满足查询条件(内置)的首个ip地址
 func (this *Gmd) Ip(module string, action string) {
 	fmt.Println(this.Util.GetLocalIP())
+}
+
+// Rand 使用方法：gmd rand
+// 输出[0,1] 之间的一个float64类型的浮点数
+func (this *Gmd) Rand(module string, action string) {
+	r := random.New(random.NewSource(time.Now().UnixNano()))
+	fmt.Println(r.Float64())
+}
+
+// Lower 使用方法： echo HELLO WORLD | gmd lower
+// 将输入的字符串变为小写输出
+func (this *Gmd) Lower(module string, action string) {
+	_, in := this.StdinJson(module, action)
+	fmt.Println(strings.ToLower(in))
 }

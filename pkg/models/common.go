@@ -2,6 +2,7 @@ package models
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/base64"
@@ -11,13 +12,17 @@ import (
 	"github.com/yin-zt/mahonia"
 	"io"
 	"io/ioutil"
+	random "math/rand"
 	"net"
 	"os"
 	"os/exec"
 	"os/user"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"strings"
+	"syscall"
+	"time"
 )
 
 type Common struct {
@@ -338,4 +343,179 @@ func (this *Common) GBKToUTF(str string) string {
 		}
 	}
 	return str
+}
+
+// 在本地执行cmd列表里的命令，程序在linux下将会如下执行：
+// linux: bash -c cmd1 cmd2 cmd3
+func (this *Common) ExecCmd(cmd []string, timeout int) string {
+
+	var cmds []string
+
+	if "windows" == runtime.GOOS {
+		cmds = []string{
+			"cmd",
+			"/C",
+		}
+		for _, v := range cmd {
+			cmds = append(cmds, v)
+		}
+
+	} else {
+		cmds = []string{
+			"/bin/bash",
+			"-c",
+		}
+		for _, v := range cmd {
+			cmds = append(cmds, v)
+		}
+
+	}
+	result, _, _ := this.Exec(cmds, timeout, nil)
+	fmt.Println(strings.Trim(result, "\n"))
+	return result
+}
+
+// 如果task_id 为nil, 则在/tmp目录下使用随机数创建一个文件，并打开此文件用来保存执行cmd命令的输出；
+// 调用exec.CommandContext来执行cmd
+func (this *Common) Exec(cmd []string, timeout int, kw map[string]string) (string, string, int) {
+	defer func() {
+		if re := recover(); re != nil {
+			buffer := debug.Stack()
+			log.Error("Exec")
+			log.Error(re)
+			log.Error(string(buffer))
+		}
+	}()
+	//var out bytes.Buffer
+
+	var fp *os.File
+	var err error
+	var taskId string
+	var fpath string
+	var data []byte
+
+	//生成一个任务id
+	taskId = time.Now().Format("20060102150405") + fmt.Sprintf("%d", time.Now().Unix())
+
+	// 在tmp目录下创建文件用来存储执行命令生成的输出
+	home_path := ""
+	if runtime.GOOS == "windows" {
+		home_path = "D:\\temp\\"
+	} else {
+		home_path = "/tmp/"
+	}
+
+	fpath = home_path + taskId + fmt.Sprintf("_%d", random.New(random.NewSource(time.Now().UnixNano())).Intn(60))
+	fp, err = os.OpenFile(fpath, os.O_CREATE|os.O_RDWR, 0666)
+
+	if err != nil {
+		log.Error(err)
+		return "", err.Error(), -1
+	}
+	defer fp.Close()
+
+	// golang 执行操作系统上的脚本或者命令
+	duration := time.Duration(timeout) * time.Second
+	if timeout == -1 {
+		duration = time.Duration(60*60*24*365) * time.Second
+	}
+	ctx, _ := context.WithTimeout(context.Background(), duration)
+
+	var path string
+
+	// linux 操作系统默认使用"/bin/bash -c " 模式
+	var command *exec.Cmd
+	command = exec.CommandContext(ctx, cmd[0], cmd[1:]...)
+	if "windows" == runtime.GOOS {
+		//		command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+
+		if len(cmd) > 2 {
+			cc := strings.Split(cmd[2], " ")
+			if cc[0] == "powershell" {
+				os.Mkdir(home_path+"/"+"tmp", 0777)
+				path = home_path + "/" + "tmp" + "/" + this.GetUUID() + ".ps1"
+				ioutil.WriteFile(path, []byte(strings.Join(cc[1:], " ")), 0777)
+				command = exec.CommandContext(ctx, "powershell", []string{path}...)
+			}
+		}
+	}
+	// 脚本执行后输出到fp中，也就是上面创建的临时文件
+	command.Stdin = os.Stdin
+	command.Stdout = fp
+	command.Stderr = fp
+
+	// 清理创建的fpath文件 和 path文件(windows下执行powershell才会生成)
+	RemoveFile := func() {
+		fp.Close()
+		if path != "" {
+			os.Remove(path)
+		}
+		if fpath != "" {
+			os.Remove(fpath)
+		}
+	}
+	_ = RemoveFile
+	// 函数退出前，把flag 改为false, 即停止线程读取fpath文件内容
+	// 删除fpath 和 path变量指向的文件
+	defer RemoveFile()
+	// 执行command命令
+	err = command.Run()
+	// 如果command执行出错，则将命令刷入日志文件中
+	// fp文件保存数据
+	if err != nil {
+		if len(kw) > 0 {
+			log.Info(kw)
+			log.Error("error:"+err.Error(), "\ttask_id:"+fpath, "\tcmd:"+cmd[2], "\tcmd:"+strings.Join(cmd, " "))
+		} else {
+			log.Info("task_id:"+fpath, "\tcmd:"+cmd[2], "\tcmd:"+strings.Join(cmd, " "))
+		}
+		log.Flush()
+		fp.Sync()
+		//fp.Seek(0, 2)
+		data, err = ioutil.ReadFile(fpath)
+		if err != nil {
+			log.Error(err)
+			log.Flush()
+			return string(data), err.Error(), -1
+		}
+		return string(data), "", -1
+	}
+	status := -1
+	// 获取command 命令执行退出状态码并赋值给status，正常退出码赋值为0
+	sysTemp := command.ProcessState
+	if sysTemp != nil {
+		status = sysTemp.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+	//fp.Seek(0, 2)
+	// 将内存中fp的数据输入文件中
+	fp.Sync()
+	// 读取fpath文件内容
+	data, err = ioutil.ReadFile(fpath)
+	// 如果操作系统是windows，则将内容使用GBK解码，并最终将执行结果\""\执行状态返回
+	if this.IsWindows() {
+		decoder := mahonia.NewDecoder("GBK")
+		if decoder != nil {
+			if str, ok := decoder.ConvertStringOK(string(data)); ok {
+				return str, "", status
+			}
+		}
+	}
+	// 如果打开文件失败，则返回data数据
+	if err != nil {
+		log.Error(err, cmd)
+		return string(data), err.Error(), -1
+	}
+
+	// 最后返回data数据 “” 和command命令退出码
+	return string(data), "", status
+}
+
+// IsWindows 判断是否为windows操作系统
+func (this *Common) IsWindows() bool {
+
+	if "windows" == runtime.GOOS {
+		return true
+	}
+	return false
+
 }

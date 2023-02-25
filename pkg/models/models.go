@@ -257,3 +257,16 @@ func (this *Gmd) Request(module string, action string) {
 	}
 
 }
+
+// Exec 支持调用gmd在linux和windows上执行命令，并返回结果
+// example: go run main.go exec -c command   -> 编译后可执行：gmd exec -c command
+func (this *Gmd) Exec(module string, action string) {
+	var (
+		command string
+	)
+	data := this.Util.GetArgsMap()
+	if v, ok := data["c"]; ok {
+		command = v
+	}
+	this.Util.ExecCmd([]string{command}, 10)
+}

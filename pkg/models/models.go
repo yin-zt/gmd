@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/astaxie/beego/httplib"
 	log "github.com/cihub/seelog"
 	filedriver "github.com/goftp/file-driver"
 	"github.com/goftp/server"
@@ -134,7 +135,6 @@ func (this *Gmd) Kv(module string, action string) {
 			return
 		}
 	}
-	fmt.Println("llllllllllll")
 
 	if home, err = this.Util.Home(); err != nil {
 		home = "./"
@@ -187,4 +187,73 @@ func (this *Gmd) StdinJson(module string, action string) (interface{}, string) {
 		obj = nil
 	}
 	return obj, in
+}
+
+// Request 使用方式 gmd request -u url -d data
+// 支持gmd对给定url发起post或者get请求，如果有-d参数则发起post请求，否则发起get请求；
+func (this *Gmd) Request(module string, action string) {
+	var (
+		err  error
+		ok   bool
+		body map[string]string
+		v    string
+		k    string
+		u    string
+		req  *httplib.BeegoHTTPRequest
+		html string
+	)
+	data := this.Util.GetArgsMap()
+	_ = data
+
+	if v, ok = data["u"]; ok {
+		u = v
+	}
+
+	if v, ok = data["url"]; ok {
+		u = v
+	}
+
+	if u == "" {
+		fmt.Println("(error) -u(url) require")
+		return
+	}
+
+	if v, ok = data["d"]; ok {
+		if err = json.Unmarshal([]byte(v), &body); err != nil {
+			fmt.Println(err)
+			return
+		}
+		req = httplib.Post(u)
+		for k, v = range body {
+
+			req.Param(k, v)
+
+		}
+
+		if v, ok = data["f"]; ok {
+
+			if this.Util.IsExist(v) {
+				req.PostFile("file", v)
+			}
+
+		}
+
+		if html, err = req.String(); err != nil {
+			log.Error(err)
+			fmt.Println(err)
+			return
+		}
+		fmt.Println(this.Util.GBKToUTF(html))
+		return
+	} else {
+		req = httplib.Get(u)
+		if html, err = req.String(); err != nil {
+			log.Error(err)
+			fmt.Println(err)
+			return
+		}
+		fmt.Println(this.Util.GBKToUTF(html))
+		return
+	}
+
 }

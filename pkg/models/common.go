@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/cihub/seelog"
+	"github.com/yin-zt/mahonia"
 	"io"
 	"io/ioutil"
 	"net"
@@ -326,4 +327,15 @@ func (this *Common) WriteFile(path string, content string) bool {
 		return false
 	}
 
+}
+
+// GBKToUTF 作用是将GBK编码的字符串转换为UTF-8编码的字符串
+func (this *Common) GBKToUTF(str string) string {
+	decoder := mahonia.NewDecoder("GBK")
+	if decoder != nil {
+		if str, ok := decoder.ConvertStringOK(str); ok {
+			return str
+		}
+	}
+	return str
 }

@@ -270,3 +270,8 @@ func (this *Gmd) Exec(module string, action string) {
 	}
 	this.Util.ExecCmd([]string{command}, 10)
 }
+
+// Ip 支持获取本地ip，并返回满足查询条件(内置)的首个ip地址
+func (this *Gmd) Ip(module string, action string) {
+	fmt.Println(this.Util.GetLocalIP())
+}

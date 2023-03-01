@@ -18,3 +18,5 @@ I create these  programs as experiments to play with golang, or to solve problem
    `gmd exec -c hostname`
 2. ip: supports you to search ip of the local machine
    `gmd ip`
+3. color: suports you to select one color to decaloted your message:
+   `gmd color -m "message" -c color`

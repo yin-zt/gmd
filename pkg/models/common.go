@@ -535,3 +535,37 @@ func (this *Common) IsWindows() bool {
 	return false
 
 }
+
+// Color 将输入字符串使用指定颜色进行打印返回
+// m为输入字符串内容；c为字符串指定的颜色
+func (this *Common) Color(m string, c string) string {
+	color := func(m string, c string) string {
+		colorMap := make(map[string]string)
+		if c == "" {
+			c = "green"
+		}
+		black := fmt.Sprintf("\033[30m%s\033[0m", m)
+		red := fmt.Sprintf("\033[31m%s\033[0m", m)
+		green := fmt.Sprintf("\033[32m%s\033[0m", m)
+		yello := fmt.Sprintf("\033[33m%s\033[0m", m)
+		blue := fmt.Sprintf("\033[34m%s\033[0m", m)
+		purple := fmt.Sprintf("\033[35m%s\033[0m", m)
+		white := fmt.Sprintf("\033[37m%s\033[0m", m)
+		glint := fmt.Sprintf("\033[5;31m%s\033[0m", m)
+		colorMap["black"] = black
+		colorMap["red"] = red
+		colorMap["green"] = green
+		colorMap["yello"] = yello
+		colorMap["yellow"] = yello
+		colorMap["blue"] = blue
+		colorMap["purple"] = purple
+		colorMap["white"] = white
+		colorMap["glint"] = glint
+		if v, ok := colorMap[c]; ok {
+			return v
+		} else {
+			return colorMap["green"]
+		}
+	}
+	return color(m, c)
+}

@@ -296,3 +296,18 @@ func (this *Gmd) Lower(module string, action string) {
 	_, in := this.StdinJson(module, action)
 	fmt.Println(strings.ToLower(in))
 }
+
+// Color 使用方法是：gmd color -m message -c color  # default color is green
+// 使用指定颜色将信息打印出来
+func (this *Gmd) Color(module string, action string) {
+	m := ""
+	c := "green"
+	argv := this.Util.GetArgsMap()
+	if v, ok := argv["m"]; ok {
+		m = v
+	}
+	if v, ok := argv["c"]; ok {
+		c = v
+	}
+	fmt.Println(this.Util.Color(m, c))
+}

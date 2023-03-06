@@ -10,7 +10,7 @@ var (
 	Logger log.LoggerInterface
 )
 
-func init() {
+func GetLog() log.LoggerInterface {
 	os.MkdirAll("/var/log/", 07777)
 	os.MkdirAll("/var/lib/cli", 07777)
 
@@ -21,8 +21,5 @@ func init() {
 		panic("init log fail")
 	}
 	Logger = logger
-}
-
-func GetLog() log.LoggerInterface {
 	return Logger
 }

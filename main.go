@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	log "github.com/cihub/seelog"
 	"github.com/yin-zt/gmd/pkg/models"
 	"github.com/yin-zt/gmd/pkg/utils"
@@ -16,18 +15,13 @@ var this = &models.Gmd{}
 func init() {
 	defer log.Flush()
 	log.ReplaceLogger(utils.GetLog())
-	log.Info("hhhhhhhhhhhhhhhhhh")
-	log.Flush()
+	log.Info("success to replace logger")
 }
 
 func main() {
 	defer log.Flush()
 	obj := reflect.ValueOf(this)
 	module, action := "default", "gmd"
-	fmt.Println("hello wor")
-	log.Error("hello world")
-	log.Info("霓虹")
-	log.Flush()
 	if len(os.Args) == 1 {
 		this.Help(module, action)
 		return

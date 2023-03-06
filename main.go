@@ -14,12 +14,14 @@ import (
 var this = &models.Gmd{}
 
 func init() {
+	defer log.Flush()
 	log.ReplaceLogger(utils.GetLog())
 	log.Info("hhhhhhhhhhhhhhhhhh")
 	log.Flush()
 }
 
 func main() {
+	defer log.Flush()
 	obj := reflect.ValueOf(this)
 	module, action := "default", "gmd"
 	fmt.Println("hello wor")

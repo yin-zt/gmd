@@ -10,6 +10,7 @@ import (
 	"github.com/goftp/server"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/yin-zt/gmd/pkg/utils"
 	random "math/rand"
 	"os"
 	"strconv"
@@ -19,6 +20,10 @@ import (
 
 type Gmd struct {
 	Util Common
+}
+
+func init() {
+	utils.InitHttpLib()
 }
 
 // 封装fmt.Println函数
@@ -310,4 +315,31 @@ func (this *Gmd) Color(module string, action string) {
 		c = v
 	}
 	fmt.Println(this.Util.Color(m, c))
+}
+
+// Wlog 使用方法是：gmd wlog -m "log message" -l level[info|warn|error]
+// 调用gmd将日志根据传入的不同等级记录到log文件中
+func (this *Gmd) Wlog(module string, action string) {
+	m := ""
+	l := "info"
+	argv := this.Util.GetArgsMap()
+	if v, ok := argv["m"]; ok {
+		m = v
+	}
+	if m == "" {
+		fmt.Println("-m(message) is require, -l(level) info,warn,error")
+		return
+	}
+	if v, ok := argv["l"]; ok {
+		l = v
+	}
+	if l == "warn" {
+		log.Warn(m)
+	} else if l == "error" {
+		log.Error(m)
+	} else {
+		log.Info(m)
+	}
+	fmt.Println(m)
+	log.Flush()
 }

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/cihub/seelog"
+	"github.com/yin-zt/gmd/pkg/utils"
 	"github.com/yin-zt/mahonia"
 	"io"
 	"io/ioutil"
@@ -26,6 +27,10 @@ import (
 )
 
 type Common struct {
+}
+
+func init() {
+	log.ReplaceLogger(utils.Logger)
 }
 
 // 处理模式，如果命令行参数数量大于2(例如： gmd arg1 arg2 ...)，且arg1和 args2 均不是以"-"开头，模式为arg1；

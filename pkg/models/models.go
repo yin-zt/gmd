@@ -10,6 +10,7 @@ import (
 	"github.com/goftp/server"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/yin-zt/gmd/pkg/config"
 	"github.com/yin-zt/gmd/pkg/utils"
 	random "math/rand"
 	"os"
@@ -342,4 +343,13 @@ func (this *Gmd) Wlog(module string, action string) {
 	}
 	fmt.Println(m)
 	log.Flush()
+}
+
+// Info 使用方法 gmd info
+// 输出当前gmd client的版本和gmd server信息
+func (this *Gmd) Info(module string, action string) {
+	res := make(map[string]string)
+	res["version"] = config.CONST_VERSION
+	//res["server"] = Gmd_SERVER
+	fmt.Println(this.Util.JsonEncodePretty(res))
 }

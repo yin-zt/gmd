@@ -20,3 +20,7 @@ I create these  programs as experiments to play with golang, or to solve problem
    `gmd ip`
 3. color: suports you to select one color to decalate your message:
    `gmd color -m "message" -c color`
+
+## info
+1. info: output information about gmd including version, server info and etc. you can use bellow command:
+   `gmd info`

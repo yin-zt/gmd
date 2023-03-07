@@ -6,6 +6,7 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	log "github.com/cihub/seelog"
@@ -573,4 +574,44 @@ func (this *Common) Color(m string, c string) string {
 		}
 	}
 	return color(m, c)
+}
+
+// JsonEncodePretty 会尝试将传入的接口类型的变量编码成json格式输出
+func (this *Common) JsonEncodePretty(o interface{}) string {
+
+	resp := ""
+	switch o.(type) {
+	case map[string]interface{}:
+		if data, err := json.Marshal(o); err == nil {
+			resp = string(data)
+		}
+	case map[string]string:
+		if data, err := json.Marshal(o); err == nil {
+			resp = string(data)
+		}
+	case []interface{}:
+		if data, err := json.Marshal(o); err == nil {
+			resp = string(data)
+		}
+	case []string:
+		if data, err := json.Marshal(o); err == nil {
+			resp = string(data)
+		}
+	case string:
+		resp = o.(string)
+
+	default:
+		if data, err := json.Marshal(o); err == nil {
+			resp = string(data)
+		}
+
+	}
+	var v interface{}
+	if ok := json.Unmarshal([]byte(resp), &v); ok == nil {
+		if buf, ok := json.MarshalIndent(v, "", "  "); ok == nil {
+			resp = string(buf)
+		}
+	}
+	return resp
+
 }

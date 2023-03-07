@@ -1,7 +1,7 @@
 package config
 
 const (
-	CONST_VERSION = "2.0-20230102"
+	CONST_VERSION = "1.0-20230102"
 
 	LogConfigStr = `
 <seelog type="asynctimer" asyncinterval="1000" minlevel="trace" maxlevel="error">  

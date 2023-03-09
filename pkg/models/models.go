@@ -353,3 +353,9 @@ func (this *Gmd) Info(module string, action string) {
 	//res["server"] = Gmd_SERVER
 	fmt.Println(this.Util.JsonEncodePretty(res))
 }
+
+// Machine_id 获取本节点的UUID
+func (this *Gmd) Machine_id(module string, action string) {
+	uuid := this.Util.GetProductUUID()
+	fmt.Println(uuid)
+}

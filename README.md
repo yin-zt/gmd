@@ -14,11 +14,12 @@ I create these  programs as experiments to play with golang, or to solve problem
    d '{\"username\": \"admin\", \"password\": \"VjjxGSQvPTt+9tnQHo7Vo+cVpW\"}'`
 
 ## shell
-1. exec: supports you to exec command on windows or linux platform，such as：
+1. shell: support you to use gmd exec scriptfile includind python\shell\powershell etc on the local-machine.
+2. exec: supports you to exec command on windows or linux platform，such as：
    `gmd exec -c hostname`
-2. ip: supports you to search ip of the local machine
+3. ip: supports you to search ip of the local machine
    `gmd ip`
-3. color: suports you to select one color to decalate your message:
+4. color: suports you to select one color to decalate your message:
    `gmd color -m "message" -c color`
 
 ## info

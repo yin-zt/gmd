@@ -27,9 +27,6 @@ import (
 	"time"
 )
 
-type Common struct {
-}
-
 func init() {
 	log.ReplaceLogger(utils.Logger)
 }

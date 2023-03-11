@@ -2,6 +2,7 @@ package models
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/astaxie/beego/httplib"
@@ -14,17 +15,49 @@ import (
 	"github.com/yin-zt/gmd/pkg/utils"
 	random "math/rand"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
 
+type Common struct {
+}
+
 type Gmd struct {
-	Util Common
+	Util *Common
+	Conf *config.Config
 }
 
 func init() {
 	utils.InitHttpLib()
+}
+
+var Util = &Common{}
+var gmd = NewGmd()
+
+// NewGmd 创建一个指向Gmd的实例
+// 同时配置了http的的默认设置，连接超时：60s;读写超时：60s; TLS传输；
+func NewGmd() *Gmd {
+
+	var (
+		gmd *Gmd
+	)
+
+	setting := httplib.BeegoHTTPSettings{
+		UserAgent:        "beegoServer",
+		ConnectTimeout:   60 * time.Second,
+		ReadWriteTimeout: 60 * time.Second,
+		Gzip:             true,
+		DumpBody:         true,
+		TLSClientConfig:  &tls.Config{InsecureSkipVerify: true},
+	}
+
+	httplib.SetDefaultSetting(setting)
+
+	gmd = &Gmd{Util: Util, Conf: config.NewConfig()}
+	return gmd
+
 }
 
 // 封装fmt.Println函数
@@ -358,4 +391,205 @@ func (this *Gmd) Info(module string, action string) {
 func (this *Gmd) Machine_id(module string, action string) {
 	uuid := this.Util.GetProductUUID()
 	fmt.Println(uuid)
+}
+
+// Shell 使用方式：gmd shell  -d path -f file -t 12 -u -a -x
+// 如果本地存在fpath文件(path+file); 且没有位置参数-u；则执行fpath + 其他位置参数组成的命令
+func (this *Gmd) Shell(module string, action string) {
+	//var err error
+	//var includeReg *regexp.Regexp
+	src := ""
+	argv := this.Util.GetArgsMap()
+	file := ""
+	dir := ""
+	update := "0"
+	debug := "0"
+	timeout := -1
+	ok := true
+	// -u 则是
+	if v, ok := argv["u"]; ok {
+		update = v
+	}
+
+	// 如果位置参数带 -x 则是使用bash执行
+	if v, ok := argv["x"]; ok {
+		debug = v
+	}
+
+	// -t 指定执行时间
+	if v, ok := argv["t"]; ok {
+		timeout, _ = strconv.Atoi(v)
+	}
+
+	// -f 指定文件
+	if file, ok = argv["f"]; !ok {
+		fmt.Println("-f(filename) is required")
+		return
+	}
+
+	// -d 则是指定目录；如果没有-d参数，则使用 shell目录
+	if dir, ok = argv["d"]; !ok {
+		dir = "shell"
+	}
+
+	// ScriptPath -> /tmp/script/shell
+	path := this.Conf.ScriptPath + dir
+	if !this.Util.IsExist(path) {
+		log.Debug(os.MkdirAll(path, 0777))
+	}
+	os.Chmod(path, 0777)
+
+	//includeRegStr := `#include\s+-f\s+(?P<filename>[a-zA-Z.0-9_-]+)?\s+-d\s+(?P<dir>[a-zA-Z.0-9_-]+)?|#include\s+-d\s+(?P<dir2>[a-zA-Z.0-9_-]+)?\s+-f\s+(?P<filename2>[a-zA-Z.0-9_-]+)?`
+	// 函数传入目录和文件名两个参数，请求cli server的 http://cli server/cli/shell接口
+	//DownloadShell := func(dir, file string) (string, error) {
+	//	req := httplib.Post(this.Conf.EnterURL + "/" + this.Conf.DefaultModule + "/shell")
+	//	req.Param("dir", dir)
+	//	req.Param("file", file)
+	//	return req.String()
+	//}
+
+	// includestr字符串中包含如下格式："-d path -f filename"
+	// 函数最后会去调用DownloadShell
+	//DownloadIncludue := func(includeStr string) string {
+	//	type DF struct {
+	//		Dir  string
+	//		File string
+	//	}
+	//	df := DF{}
+	//	parts := strings.Split(includeStr, " ")
+	//	for i, v := range parts {
+	//		if v == "-d" {
+	//			df.Dir = parts[i+1]
+	//		}
+	//		if v == "-f" {
+	//			df.File = parts[i+1]
+	//		}
+	//	}
+	//
+	//	if s, err := DownloadShell(df.Dir, df.File); err != nil {
+	//		log.Error(err)
+	//		return includeStr
+	//	} else {
+	//		return s
+	//	}
+	//
+	//}
+
+	// path -> /tmp/script/shell ; file -> -f filename
+	fpath := path + "/" + file
+	fpath = strings.Replace(fpath, "///", "/", -1)
+	fpath = strings.Replace(fpath, "//", "/", -1)
+
+	// 如果文件不存在当前目录，则请求gmd server下载文件
+	if update == "1" || !this.Util.IsExist(fpath) {
+		fmt.Println("call gmd server")
+		//if src, err = DownloadShell(dir, file); err != nil {
+		//	log.Error(err)
+		//	return
+		//}
+		//
+		//if includeReg, err = regexp.Compile(includeRegStr); err != nil {
+		//	log.Error(err)
+		//	return
+		//}
+		//
+		//os.MkdirAll(filepath.Dir(fpath), 0777)
+		//
+		//// 从cli server侧下载的src路径与正则表达式匹配；满足匹配的值的字符串则传入函数DownloadIncludue中
+		//// 函数DownloadIncludue则会调用DownloadShell函数下载
+		//// 如此逻辑其实调用了两次
+		//src = includeReg.ReplaceAllStringFunc(src, DownloadIncludue)
+		//
+		//this.Util.WriteFile(fpath, src)
+	} else {
+		src = this.Util.ReadFile(fpath)
+	}
+
+	// 对请求gmd server url http://gmd server/gmd/shell返回的字符串进行处理
+	lines := strings.Split(src, "\n")
+	is_python := false
+	is_shell := false
+	is_powershell := false
+	if len(lines) > 0 {
+		// 判断字符串是否包含 python
+		is_python, _ = regexp.MatchString("python", lines[0])
+		// 判断字符串是否包含 bash
+		is_shell, _ = regexp.MatchString("bash", lines[0])
+	}
+
+	// 判断字符串是否包含 ps1 -> powershell
+	if strings.HasSuffix(file, ".ps1") {
+		is_powershell = true
+	}
+
+	os.Chmod(fpath, 0777)
+	result := ""
+
+	// 组成执行命令的命令列表
+	cmds := []string{
+		fpath,
+	}
+	if is_python {
+		cmds = []string{
+			"/usr/bin/env",
+			"python",
+			fpath,
+		}
+	}
+	if is_shell {
+		cmds = []string{
+			"/bin/bash",
+			fpath,
+		}
+		if debug == "1" {
+			cmds = []string{
+				"/bin/bash",
+				"-x",
+				fpath,
+			}
+		}
+	}
+
+	if is_powershell {
+		cmds = []string{
+			"powershell",
+			fpath,
+		}
+	}
+
+	argvMap := this.Util.GetArgsMap()
+
+	// 检查执行 cli shell 命令时 位置参数是否有 -a
+	// 如果有，则将 -a 后接的所有值使用 “ ”分隔后，再追加到cmds数组中
+	if args, ok := argvMap["a"]; ok {
+		cmds = append(cmds, strings.Split(args, " ")...)
+	} else {
+		var args []string
+		var tflag bool
+		tflag = false
+		for i, v := range os.Args {
+			if v == "-t" {
+				tflag = true
+				continue
+			}
+			if tflag {
+				tflag = false
+				continue
+			}
+			// 如果位置参数中不是-x和-u，则将此参数放入列表args中
+			if v != "-x" && v != "-u" {
+				args = append(args, os.Args[i])
+			}
+		}
+		//fmt.Println("update:",update,"debug:",debug)
+		//fmt.Println("args:",args)
+		// 把args列表中第6个及之后的值加入命令列表cmds中
+		os.Args = args
+		cmds = append(cmds, os.Args[6:]...)
+		//fmt.Println("cmds", cmds)
+	}
+
+	// 本地执行脚本cmds并输出结果
+	result, _, _ = this.Util.Exec(cmds, timeout, nil)
+	fmt.Println(result)
 }

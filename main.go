@@ -10,7 +10,7 @@ import (
 	"reflect"
 )
 
-var this = &models.Gmd{}
+var this = models.NewGmd()
 
 func init() {
 	defer log.Flush()

@@ -15,6 +15,7 @@ I create these  programs as experiments to play with golang, or to solve problem
 
 ## shell
 1. shell: support you to use gmd exec scriptfile includind python\shell\powershell etc on the local-machine.
+   `go run .\main.go shell -f test.ps1 -d "." -t 10`
 2. exec: supports you to exec command on windows or linux platform，such as：
    `gmd exec -c hostname`
 3. ip: supports you to search ip of the local machine

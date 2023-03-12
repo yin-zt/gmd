@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/astaxie/beego/httplib"
 	log "github.com/cihub/seelog"
 	"github.com/yin-zt/gmd/pkg/config"
 	"github.com/yin-zt/gmd/pkg/utils"
@@ -997,4 +998,67 @@ func (this *Common) GetHostName() string {
 	return config.HOSTNAME
 }
 
-// server端相关函数
+// Download 使用data里的参数向url发起post请求
+func (this *Common) Download(url string, data map[string]string) []byte {
+
+	req := httplib.Post(url)
+
+	for k, v := range data {
+		req.Param(k, v)
+	}
+	str, err := req.Bytes()
+
+	if err != nil {
+
+		return nil
+
+	} else {
+		return str
+	}
+}
+
+// 认证相关
+
+// GetToken 获取此节点下记录的本节点token信息
+func (this *Common) GetToken() string {
+
+	return this.GetGmdValByKey("token")
+}
+
+// GetAuthUUID 获取此节点下记录的本节点UUID信息
+func (this *Common) GetAuthUUID() string {
+	return this.GetGmdValByKey("auth-uuid")
+}
+
+// GetReqToken 获取此节点下记录的本节点token信息
+func (this *Common) GetReqToken() string {
+	return this.GetGmdValByKey("token")
+}
+
+// GetCliValByKey 作用是读取/var/lib/gmd/.gmd文件内容，并将内容解析成字典，最后返回键为key的值
+func (this *Common) GetGmdValByKey(key string) string {
+	dict := map[string]string{}
+	if dir, ok := this.Home(); ok == nil {
+		filename := dir + "/" + ".gmd"
+		if key == "server" {
+			filename = "/var/lib/gmd/.gmd"
+		}
+		content := this.ReadFile(filename)
+		if content != "" {
+			strs := strings.Split(content, "\n")
+			for _, s := range strs {
+				kv := strings.Split(strings.Trim(s, " "), "=")
+				if len(kv) == 2 {
+					dict[kv[0]] = kv[1]
+				}
+			}
+		}
+	}
+	if val, ok := dict[key]; ok {
+		return val
+	} else {
+		return ""
+	}
+}
+
+// //   server端相关函数

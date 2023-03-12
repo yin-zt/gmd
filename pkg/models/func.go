@@ -11,6 +11,7 @@ import (
 	"github.com/goftp/server"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/takama/daemon"
 	"github.com/yin-zt/gmd/pkg/config"
 	"github.com/yin-zt/gmd/pkg/utils"
 	random "math/rand"
@@ -22,6 +23,10 @@ import (
 )
 
 type Common struct {
+}
+
+type Daemon struct {
+	daemon.Daemon
 }
 
 type Gmd struct {
@@ -65,6 +70,23 @@ func print(args ...interface{}) {
 	fmt.Println(args)
 }
 
+//读取存取进程pid的文件(/var/lib/gmd/gmd.pid)获取到进程pid
+func (this *Gmd) getPids() []string {
+	//cmd := `source /etc/profile ; ps aux|grep -w 'daemon -s daemon'|grep -v grep|awk '{print $2}'`
+	//cmds := []string{
+	//	"/bin/bash",
+	//	"-c",
+	//	cmd,
+	//}
+	//pid, _, _ := this.util.Exec(cmds, 10, nil)
+	//log.Error(cmds)
+	//return strings.Trim(pid, "\n ")
+
+	//读取存取进程pid的文件(/var/lib/gmd/gmd.pid)获取到进程pid
+	pid := this.Util.ReadFile(config.PID_FILE)
+	return strings.Split(strings.TrimSpace(pid), "\n")
+}
+
 // Help 介绍gmd工具的基本使用方法
 func (this *Gmd) Help(module string, action string) {
 	resp := `
@@ -81,6 +103,12 @@ func (this *Gmd) Help(module string, action string) {
 
 `
 	print(resp)
+}
+
+// 调用this.Util.Request(url, data)进行请求
+func (this *Gmd) _Request(url string, data map[string]string) string {
+	resp := this.Util.Request(url, data)
+	return resp
 }
 
 // Ftpserver
@@ -391,6 +419,40 @@ func (this *Gmd) Info(module string, action string) {
 func (this *Gmd) Machine_id(module string, action string) {
 	uuid := this.Util.GetProductUUID()
 	fmt.Println(uuid)
+}
+
+// Uuid 使用方法是：gmd uuid
+// 作用是：获取一个随机的UUID
+func (this *Gmd) Uuid(module string, action string) {
+	id := this.Util.GetUUID()
+	fmt.Println(id)
+}
+
+// Randint 使用方法是：gmd randint -r start:end #default[r] 为：0:100
+// 在一个区间生成一个随机数字，默认区间为[0:100]
+func (this *Gmd) Randint(module string, action string) {
+	start := 0
+	end := 100
+	argv := this.Util.GetArgsMap()
+	if v, ok := argv["r"]; ok {
+		ss := strings.Split(v, ":")
+		if len(ss) == 2 {
+			start, _ = strconv.Atoi(ss[0])
+			end, _ = strconv.Atoi(ss[1])
+		}
+
+	}
+
+	RandInt := func(min, max int) int {
+		r := random.New(random.NewSource(time.Now().UnixNano()))
+		if min >= max {
+			return max
+		}
+		return r.Intn(max-min) + min
+	}
+
+	fmt.Println(RandInt(start, end))
+
 }
 
 // Shell 使用方式：gmd shell  -d path -f file -t 12 -u -a -x

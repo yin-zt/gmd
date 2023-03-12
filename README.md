@@ -22,6 +22,10 @@ I create these  programs as experiments to play with golang, or to solve problem
    `gmd ip`
 4. color: suports you to select one color to decalate your message:
    `gmd color -m "message" -c color`
+5. uuid: generate a uuid string randomly.
+   `gmd uuid`
+6. randint: generate one number between a given interval.
+   `gmd randint -r 10:40`
 
 ## info
 1. info: output information about gmd including version, server info and etc. you can use bellow command:

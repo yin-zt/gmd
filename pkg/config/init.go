@@ -43,4 +43,5 @@ var (
 	DEBUG     = false
 	BENCHMARK = false
 	HOSTNAME  = ""
+	PID_FILE  = "/var/lib/gmd/gmd.pid"
 )

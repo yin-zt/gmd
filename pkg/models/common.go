@@ -1017,7 +1017,7 @@ func (this *Common) Download(url string, data map[string]string) []byte {
 	}
 }
 
-// 认证相关
+// // 认证相关
 
 // GetToken 获取此节点下记录的本节点token信息
 func (this *Common) GetToken() string {
@@ -1062,3 +1062,59 @@ func (this *Common) GetGmdValByKey(key string) string {
 }
 
 // //   server端相关函数
+
+// Request 向url发起http 请求
+// 如果传入参数data中没有key为i或者s，则-i使用本地IP；-s使用主机名；
+// 如果url中存在feedback_result子串，则查看data中是否存在kw键，如果有，则将其值解析成字典，并赋值到新的data2中
+// 最后请求头加上auth-uuid、token、machine-id后，发起http请求
+func (this *Common) Request(url string, data map[string]string) string {
+	body := "{}"
+
+	for _, k := range []string{"i", "s"} {
+		if _, ok := data[k]; !ok {
+			switch k {
+			case "i":
+				data[k] = this.GetLocalIP()
+			case "s":
+				data[k], _ = os.Hostname()
+			}
+		}
+
+	}
+	if pdata, err := json.Marshal(data); err == nil {
+		body = string(pdata)
+	}
+
+	//begin
+	if strings.Contains(url, "feedback_result") { // just for feedback_result,this is bad code
+		data2 := make(map[string]interface{})
+		for k, v := range data {
+			data2[k] = v
+		}
+		if m, ok := data["kw"]; ok {
+			var kw map[string]interface{}
+			if err := json.Unmarshal([]byte(m), &kw); err == nil {
+				data2["kw"] = kw
+			}
+		}
+		if pdata, err := json.Marshal(data2); err == nil {
+			body = string(pdata)
+		}
+	} //end
+
+	req := httplib.Post(url)
+
+	uuid := this.GetAuthUUID()
+	token := this.GetReqToken()
+	req.Header("auth-uuid", uuid)
+	req.Header("token", token)
+	req.Header("machine-id", this.GetProductUUID())
+
+	req.Param("param", body)
+	req.SetTimeout(time.Second*10, time.Second*60)
+	str, err := req.String()
+	if err != nil {
+		log.Error(err, url, data)
+	}
+	return str
+}

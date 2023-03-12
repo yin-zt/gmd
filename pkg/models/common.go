@@ -7,10 +7,12 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	log "github.com/cihub/seelog"
+	"github.com/yin-zt/gmd/pkg/config"
 	"github.com/yin-zt/gmd/pkg/utils"
 	"github.com/yin-zt/mahonia"
 	"io"
@@ -302,6 +304,18 @@ func (this *Common) GetUUID() string {
 	id := this.MD5(base64.URLEncoding.EncodeToString(b))
 	return fmt.Sprintf("%s-%s-%s-%s-%s", id[0:8], id[8:12], id[12:16], id[16:20], id[20:])
 
+}
+
+// MD5File 输出文件内容的md5值
+func (this *Common) MD5File(fn string) string {
+	file, err := os.Open(fn)
+	if err != nil {
+		return ""
+	}
+	defer file.Close()
+	md5 := md5.New()
+	io.Copy(md5, file)
+	return hex.EncodeToString(md5.Sum(nil))
 }
 
 // MD5 输出字符串的md5值
@@ -948,3 +962,39 @@ func (this *Common) Replace(s string, o string, n string) string {
 	s = reg.ReplaceAllString(s, n)
 	return s
 }
+
+// RandInt 生成一个在某个区间内的随机整数
+func (this *Common) RandInt(min, max int) int {
+	r := random.New(random.NewSource(time.Now().UnixNano()))
+	if min >= max {
+		return max
+	}
+	return r.Intn(max-min) + min
+}
+
+// JsonEncode 将输入的对象序列化
+func (this *Common) JsonEncode(v interface{}) string {
+
+	if v == nil {
+		return ""
+	}
+	jbyte, err := json.Marshal(v)
+	if err == nil {
+		return string(jbyte)
+	} else {
+		return ""
+	}
+
+}
+
+// GetHostName 获取主机名
+func (this *Common) GetHostName() string {
+	if config.HOSTNAME != "" && config.BENCHMARK {
+		return config.HOSTNAME
+	}
+	result, _, _ := this.Exec([]string{"hostname"}, 5, nil)
+	config.HOSTNAME = strings.Trim(result, "\r\n")
+	return config.HOSTNAME
+}
+
+// server端相关函数

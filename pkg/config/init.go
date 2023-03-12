@@ -40,5 +40,7 @@ const (
 )
 
 var (
-	DEBUG = false
+	DEBUG     = false
+	BENCHMARK = false
+	HOSTNAME  = ""
 )

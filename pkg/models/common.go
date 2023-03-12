@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/md5"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -19,9 +20,11 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"reflect"
 	"regexp"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -611,4 +614,337 @@ func (this *Common) JsonEncodePretty(o interface{}) string {
 	}
 	return resp
 
+}
+
+// SqliteExec 适配在sqlite3上执行操作命令
+func (this *Common) SqliteExec(filename string, s string) (int64, error) {
+	var (
+		err    error
+		db     *sql.DB
+		result sql.Result
+	)
+	if filename == "" {
+		filename = ":memory:"
+	}
+	if db, err = sql.Open("sqlite3", filename); err != nil {
+		return -1, err
+	}
+
+	if result, err = db.Exec(s); err != nil {
+		return -1, err
+	}
+	return result.RowsAffected()
+
+}
+
+// SqliteQuery 适配在sqlite3上执行查询命令
+func (this *Common) SqliteQuery(filename string, s string) ([]map[string]interface{}, error) {
+	var (
+		err     error
+		db      *sql.DB
+		rows    *sql.Rows
+		records []map[string]interface{}
+	)
+
+	if filename == "" {
+		filename = ":memory:"
+	}
+	if db, err = sql.Open("sqlite3", filename); err != nil {
+		return nil, err
+	}
+
+	rows, err = db.Query(s)
+
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	records = []map[string]interface{}{}
+	for rows.Next() {
+		record := map[string]interface{}{}
+
+		columns, err := rows.Columns()
+		if err != nil {
+			log.Error(
+				err, "unable to obtain rows columns",
+			)
+			continue
+		}
+
+		pointers := []interface{}{}
+		for _, column := range columns {
+			var value interface{}
+			pointers = append(pointers, &value)
+			record[column] = &value
+		}
+
+		err = rows.Scan(pointers...)
+		if err != nil {
+			log.Error(err, "can't read result records")
+			continue
+		}
+
+		for key, value := range record {
+			indirect := *value.(*interface{})
+			if value, ok := indirect.([]byte); ok {
+				record[key] = string(value)
+			} else {
+				record[key] = indirect
+			}
+		}
+
+		records = append(records, record)
+	}
+
+	return records, nil
+
+}
+
+// SqliteInsert 适配在sqlite3上执行插入命令
+func (this *Common) SqliteInsert(filename string, table string, records []interface{}) (*sql.DB, error) {
+
+	var (
+		err error
+		db  *sql.DB
+	)
+
+	if filename == "" {
+		filename = ":memory:"
+	}
+	if db, err = sql.Open("sqlite3", filename); err != nil {
+		return nil, err
+	}
+
+	Push := func(db *sql.DB, table string, records []interface{}) error {
+		hashKeys := map[string]struct{}{}
+
+		keyword := []string{"ALTER",
+			"CLOSE",
+			"COMMIT",
+			"CREATE",
+			"DECLARE",
+			"DELETE",
+			"DENY",
+			"DESCRIBE",
+			"DOMAIN",
+			"DROP",
+			"EXECUTE",
+			"EXPLAN",
+			"FETCH",
+			"GRANT",
+			"INDEX",
+			"INSERT",
+			"OPEN",
+			"PREPARE",
+			"PROCEDURE",
+			"REVOKE",
+			"ROLLBACK",
+			"SCHEMA",
+			"SELECT",
+			"SET",
+			"SQL",
+			"TABLE",
+			"TRANSACTION",
+			"TRIGGER",
+			"UPDATE",
+			"VIEW",
+			"GROUP"}
+		_ = keyword
+		for _, record := range records {
+			switch record.(type) {
+			case map[string]interface{}:
+				for key, _ := range record.(map[string]interface{}) {
+					if strings.HasPrefix(key, "`") {
+						continue
+					}
+					key2 := fmt.Sprintf("`%s`", key)
+					record.(map[string]interface{})[key2] = record.(map[string]interface{})[key]
+					delete(record.(map[string]interface{}), key)
+					hashKeys[key2] = struct{}{}
+				}
+			}
+		}
+
+		keys := []string{}
+
+		for key, _ := range hashKeys {
+			keys = append(keys, key)
+		}
+
+		//		db.Exec("DROP TABLE data")
+		query := fmt.Sprintf("CREATE TABLE %s ("+strings.Join(keys, ",")+")", table)
+		if _, err := db.Exec(query); err != nil {
+			//fmt.Println(query)
+			log.Error(err)
+		}
+
+		for _, record := range records {
+			recordKeys := []string{}
+			recordValues := []string{}
+			recordArgs := []interface{}{}
+
+			switch record.(type) {
+			case map[string]interface{}:
+
+				for key, value := range record.(map[string]interface{}) {
+					recordKeys = append(recordKeys, key)
+					recordValues = append(recordValues, "?")
+					recordArgs = append(recordArgs, value)
+				}
+
+			}
+
+			query := fmt.Sprintf("INSERT INTO %s ("+strings.Join(recordKeys, ",")+
+				") VALUES ("+strings.Join(recordValues, ", ")+")", table)
+
+			statement, err := db.Prepare(query)
+			if err != nil {
+				log.Error(
+					err, "can't prepare query: %s", query,
+				)
+				continue
+
+			}
+
+			_, err = statement.Exec(recordArgs...)
+			if err != nil {
+				log.Error(
+					err, "can't insert record",
+				)
+
+			}
+			statement.Close()
+		}
+
+		return nil
+	}
+
+	err = Push(db, table, records)
+	if err != nil {
+		return nil, err
+	}
+
+	return db, err
+
+}
+
+// JsonDecode json解码成接口类型, 将字符串反序列化处理
+// 如strr = "{\"hello\": \"world\"}" 得到一个字典
+func (this *Common) JsonDecode(jsonstr string) interface{} {
+
+	var v interface{}
+	err := json.Unmarshal([]byte(jsonstr), &v)
+	if err != nil {
+		return nil
+
+	} else {
+		return v
+	}
+
+}
+
+// Jq 作用是解析data变量的值, data值是序列化后的字符串
+// 如果是字典类型，则返回键为key的value
+// 如果是列表类型，则根据列表元素的类型进行处理：
+// 如果列表元素是字典，且key不为空，则返回字典中为key的值；如果key为空，则返回所有字典的值，并追加到列表中
+// 如果列表元素是列表，则将列表内容均追加到列表中
+func (this *Common) Jq(data interface{}, key string) interface{} {
+	if v, ok := data.(string); ok {
+		data = this.JsonDecode(v)
+	}
+	if v, ok := data.([]byte); ok {
+		data = this.JsonDecode(string(v))
+	}
+	var obj interface{}
+	var ks []string
+	if strings.Contains(key, ",") {
+		ks = strings.Split(key, ",")
+	} else {
+		ks = strings.Split(key, ".")
+	}
+	obj = data
+
+	ParseDict := func(obj interface{}, key string) interface{} {
+		switch obj.(type) {
+		case map[string]interface{}:
+			if v, ok := obj.(map[string]interface{})[key]; ok {
+				return v
+			}
+		}
+		return nil
+
+	}
+
+	ParseList := func(obj interface{}, key string) interface{} {
+		var ret []interface{}
+		switch obj.(type) {
+		case []interface{}:
+			if ok, _ := regexp.MatchString("^\\d+$", key); ok {
+				i, _ := strconv.Atoi(key)
+				return obj.([]interface{})[i]
+			}
+
+			for _, v := range obj.([]interface{}) {
+				switch v.(type) {
+				case map[string]interface{}:
+					if key == "*" {
+						for _, vv := range v.(map[string]interface{}) {
+							ret = append(ret, vv)
+						}
+					} else {
+						if vv, ok := v.(map[string]interface{})[key]; ok {
+							ret = append(ret, vv)
+						}
+					}
+				case []interface{}:
+					if key == "*" {
+						for _, vv := range v.([]interface{}) {
+							ret = append(ret, vv)
+						}
+					} else {
+						ret = append(ret, v)
+					}
+				}
+			}
+		}
+		return ret
+	}
+	if key != "" {
+		for _, k := range ks {
+			switch obj.(type) {
+			case map[string]interface{}:
+				obj = ParseDict(obj, k)
+			case []interface{}:
+				obj = ParseList(obj, k)
+			}
+		}
+	}
+	return obj
+}
+
+// Contains 作用与函数Contain一样
+func (this *Common) Contains(obj interface{}, arrayobj interface{}) bool {
+	targetValue := reflect.ValueOf(arrayobj)
+	switch reflect.TypeOf(arrayobj).Kind() {
+	case reflect.Slice, reflect.Array:
+		for i := 0; i < targetValue.Len(); i++ {
+			if targetValue.Index(i).Interface() == obj {
+				return true
+			}
+		}
+	case reflect.Map:
+		if targetValue.MapIndex(reflect.ValueOf(obj)).IsValid() {
+			return true
+		}
+	}
+	return false
+}
+
+// Replace 作用是将字符串s中满足正则匹配规则o 的子字段，替换成新字段n
+func (this *Common) Replace(s string, o string, n string) string {
+	reg := regexp.MustCompile(o)
+	s = reg.ReplaceAllString(s, n)
+	return s
 }

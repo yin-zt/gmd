@@ -39,6 +39,7 @@ I create these  programs as experiments to play with golang, or to solve problem
 11. match: support find out substring which satisfy regex.
     `gmd match -s "hell(i)45oworld" -m "[\d+]+" -o "i";`
 12. pq: `gmd pq -m html -f xxx.html`
+13. telnet: `gmd telnet -h 8.8.8.8:53 -t 5`
 
 ## interactive operation
 1. keys: `echo '{"aa": "bb", "test": "hello world"}' | gmd keys`
@@ -47,13 +48,11 @@ I create these  programs as experiments to play with golang, or to solve problem
 4. join: `echo '["aa", "bb", "cc"]' | gmd join -s "-" -w "GG"`
 5. json_val: `echo '{"tt":"helloworld", "bb": "fufu"}' | gmd json_val`
 6. jq: `echo '{"tt":"helloworld", "bb": "fufu"}' | gmd jq`
-7. 
 
 ## sql operation
 1. sqlite3: 
    `gmd sqlite -s sql -f filename -t tablename`
    `gmd jf -c * -w "condition" --limit 10`
-2. 
 
 
 ## info

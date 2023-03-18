@@ -1496,3 +1496,24 @@ func (this *Gmd) Jf(module string, action string) {
 	fmt.Println(Util.JsonEncodePretty(records))
 
 }
+
+// Telnet 使用方法是 gmd telnet -h host -t time
+// 示例：gmd telnet -h 8.8.8.8:53 -t 5
+func (this *Gmd) Telnet(module string, action string) {
+	var host string
+	var response any
+	tNum := 5
+	argv := this.Util.GetArgsMap()
+	if v, ok := argv["h"]; ok {
+		host = v
+	}
+	if t, ok := argv["t"]; ok {
+		if num, err := strconv.Atoi(t); err != nil {
+			response = "-t number must be a number string"
+			panic(response)
+		} else {
+			tNum = num
+		}
+	}
+	this.Util.TelnetCheck(host, tNum)
+}
